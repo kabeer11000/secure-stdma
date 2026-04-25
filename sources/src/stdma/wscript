@@ -1,15 +1,40 @@
 ## -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
 
+def configure(conf):
+    # Check for OpenSSL (needed for Secure STDMA crypto)
+    import os
+    has_ssl = os.path.exists('/usr/include/openssl/ssl.h')
+    has_libssl = os.path.exists('/usr/lib/x86_64-linux-gnu/libssl.so') or \
+                 os.path.exists('/usr/lib/libssl.so')
+    if has_ssl and has_libssl:
+        conf.env['OPENSSL_FOUND'] = True
+        conf.env.append_value('CPPFLAGS', '-DHAVE_OPENSSL')
+        conf.env.append_value('NS3_LIBS', 'ssl', 'crypto')
+    else:
+        conf.env['OPENSSL_FOUND'] = False
+
+    # Recurse into crypto subdirectory
+    conf.recurse('crypto')
+
+
 def build(bld):
-    obj = bld.create_ns3_module('stdma', ['network', 'wifi'])
+    deps = ['network', 'wifi']
+    if bld.env['OPENSSL_FOUND']:
+        deps.append('stdma_crypto')
+
+    obj = bld.create_ns3_module('stdma', deps)
     obj.source = [
     	'helper/stdma-helper.cc',
     	'helper/stdma-mac-helper.cc',
+    	'helper/stdma-secure-helper.cc',
     	'model/stdma-mac.cc',
     	'model/stdma-net-device.cc',
     	'model/stdma-slot-manager.cc',
     	'model/stdma-header.cc',
         ]
+
+    if bld.env['OPENSSL_FOUND']:
+        obj.lib = ['ssl', 'crypto']
 
     obj_test = bld.create_ns3_module_test_library('stdma')
     obj_test.source = [
@@ -17,6 +42,7 @@ def build(bld):
     	'test/two-nodes-test.cc',
     	'test/slot-manager-test.cc',
     	'test/stdma-test-suite.cc',
+    	'test/crypto-test-suite.cc',
         ]
 
     headers = bld(features='ns3header')
@@ -24,6 +50,7 @@ def build(bld):
     headers.source = [
     	'helper/stdma-helper.h',
     	'helper/stdma-mac-helper.h',
+    	'helper/stdma-secure-helper.h',
     	'model/stdma-mac.h',
     	'model/stdma-net-device.h',
     	'model/stdma-slot-manager.h',
@@ -32,6 +59,5 @@ def build(bld):
 
     if (bld.env['ENABLE_EXAMPLES']):
         bld.recurse('examples')
-        
+
     bld.ns3_python_bindings()
-    

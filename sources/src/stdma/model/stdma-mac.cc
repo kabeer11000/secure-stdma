@@ -40,6 +40,7 @@
 #include "stdma-mac.h"
 #include "stdma-net-device.h"
 #include "stdma-header.h"
+#include "stdma-secure-header.h"
 #include <sstream>
 #include <iostream>
 
@@ -182,11 +183,16 @@ namespace stdma
      m_rxOngoing(false),
      m_rxStart(ns3::Seconds(0)),
      m_startedUp(false),
-     m_manager(0)
+     m_manager(0),
+     m_securityEnabled(false),
+     m_seqNum(0),
+     m_maxTimestampAge(ns3::MilliSeconds(1000)),
+     m_mode(SecureStdmaHeader::MODE_HANDSHAKE)
   {
     // Queue to hold packets in
     m_queue = ns3::CreateObject<ns3::WifiMacQueue>();
     m_manager = ns3::CreateObject<StdmaSlotManager>();
+    m_neighborCache = ns3::CreateObject<NeighborCache>();
   }
 
   StdmaMac::~StdmaMac ()
@@ -359,32 +365,77 @@ namespace stdma
     ns3::Ptr<ns3::Packet> packet = m_queue->Dequeue(&wifiMacHdr)->Copy();
 
     //     Create a STDMA header object and fill it properly...
-    StdmaHeader stdmaHdr;
-    stdmaHdr.SetOffset(offset);
-    stdmaHdr.SetTimeout(0);
     ns3::Ptr<ns3::Node> myself = ns3::NodeList::GetNode(ns3::Simulator::GetContext());
     ns3::Ptr<ns3::MobilityModel> mobility = myself->GetObject<ns3::MobilityModel>();
-    stdmaHdr.SetLatitude(mobility->GetPosition().x);
-    stdmaHdr.SetLongitude(mobility->GetPosition().y);
-    stdmaHdr.SetNetworkEntry();
+    uint32_t hdrSize;
+
+    if (m_securityEnabled && m_nodeKey != 0)
+      {
+        SecureStdmaHeader secureHdr;
+        secureHdr.SetOffset(offset);
+        secureHdr.SetTimeout(0);
+        secureHdr.SetLatitude(mobility->GetPosition().x);
+        secureHdr.SetLongitude(mobility->GetPosition().y);
+        secureHdr.SetMode(SecureStdmaHeader::MODE_HANDSHAKE);
+        secureHdr.SetNetworkEntry(true);
+
+        uint64_t nowMs = ns3::Simulator::Now().GetMilliSeconds();
+        secureHdr.SetTimestamp(nowMs);
+        uint32_t nonce = CryptoProvider::GenerateNonce(4)[0] |
+                        (CryptoProvider::GenerateNonce(4)[1] << 8) |
+                        (CryptoProvider::GenerateNonce(4)[2] << 16) |
+                        (CryptoProvider::GenerateNonce(4)[3] << 24);
+        secureHdr.SetNonce(nonce);
+
+        if (m_certificate != 0)
+          {
+            secureHdr.SetCertPresent(true);
+            std::vector<uint8_t> certBytes = m_certificate->ToBytes();
+            secureHdr.SetCertificate(certBytes);
+          }
+        else
+          {
+            secureHdr.SetCertPresent(false);
+          }
+
+        std::vector<uint8_t> dataToSign = secureHdr.SerializeWithoutSignature();
+        std::vector<uint8_t> signature = m_nodeKey->Sign(dataToSign);
+        secureHdr.SetSignature(signature.data(), signature.size());
+
+        packet->AddHeader(secureHdr);
+        hdrSize = secureHdr.GetSerializedSize();
+
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() --> SECURE (mode=HANDSHAKE, certPresent=" << (secureHdr.GetCertPresent() ? 1 : 0) << ")");
+      }
+    else
+      {
+        StdmaHeader stdmaHdr;
+        stdmaHdr.SetOffset(offset);
+        stdmaHdr.SetTimeout(0);
+        stdmaHdr.SetLatitude(mobility->GetPosition().x);
+        stdmaHdr.SetLongitude(mobility->GetPosition().y);
+        stdmaHdr.SetNetworkEntry();
+        packet->AddHeader(stdmaHdr);
+        hdrSize = stdmaHdr.GetSerializedSize();
+
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() --> STDMA.latitude: " << stdmaHdr.GetLatitude());
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() --> STDMA.longitude: " << stdmaHdr.GetLongitude());
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() --> STDMA.timeout: " << (uint32_t) stdmaHdr.GetTimeout());
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() --> STDMA.offset: " << stdmaHdr.GetOffset());
+      }
 
     //     Create a frame check sequence trailer
     ns3::WifiMacTrailer fcs;
-    const uint32_t slotBytes = packet->GetSize() + stdmaHdr.GetSerializedSize() + wifiMacHdr.GetSize() + fcs.GetSerializedSize();
+    const uint32_t slotBytes = packet->GetSize() + hdrSize + wifiMacHdr.GetSize() + fcs.GetSerializedSize();
     ns3::WifiTxVector txVector(m_wifiMode, 1, 0, false, 1, 1, false);
     ns3::Time txDuration = m_phy->CalculateTxDuration(slotBytes, txVector, m_wifiPreamble);
     wifiMacHdr.SetDuration(txDuration);
 
     //     Add everything to the packet
-    packet->AddHeader(stdmaHdr);
     packet->AddHeader(wifiMacHdr);
     packet->AddTrailer(fcs);
 
     NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() transmitting packet " << packet->GetUid() << " with packet->GetSize() = " << packet->GetSize());
-    NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() --> STDMA.latitude: " << stdmaHdr.GetLatitude());
-    NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() --> STDMA.longitude: " << stdmaHdr.GetLongitude());
-    NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() --> STDMA.timeout: " << (uint32_t) stdmaHdr.GetTimeout());
-    NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:PerformNetworkEntry() --> STDMA.offset: " << stdmaHdr.GetOffset());
 
     //     Send packet through physical layer
     NS_ASSERT_MSG (!m_phy->IsStateTx(), "StdmaMac:PerformNetworkEntry() physical layer should not be transmitting already.");
@@ -460,31 +511,84 @@ namespace stdma
     ns3::Ptr<ns3::Packet> packet = m_queue->Dequeue(&wifiMacHdr)->Copy();
 
     // 3a) Create a STDMA header object and fill it properly...
-    StdmaHeader stdmaHdr;
-    stdmaHdr.SetOffset(offset);
-    stdmaHdr.SetTimeout(timeout);
+    //    Use SecureStdmaHeader when security is enabled
     ns3::Ptr<ns3::Node> myself = ns3::NodeList::GetNode(ns3::Simulator::GetContext());
     ns3::Ptr<ns3::MobilityModel> mobility = myself->GetObject<ns3::MobilityModel>();
-    stdmaHdr.SetLatitude(mobility->GetPosition().x);
-    stdmaHdr.SetLongitude(mobility->GetPosition().y);
+
+    uint32_t hdrSize;
+    if (m_securityEnabled && m_nodeKey != 0)
+      {
+        SecureStdmaHeader secureHdr;
+        secureHdr.SetOffset(offset);
+        secureHdr.SetTimeout(timeout);
+        secureHdr.SetLatitude(mobility->GetPosition().x);
+        secureHdr.SetLongitude(mobility->GetPosition().y);
+        secureHdr.SetMode(m_mode);
+        secureHdr.SetNetworkEntry(false);
+
+        // Set timestamp and nonce
+        uint64_t nowMs = ns3::Simulator::Now().GetMilliSeconds();
+        secureHdr.SetTimestamp(nowMs);
+        uint32_t nonce = CryptoProvider::GenerateNonce(4)[0] |
+                        (CryptoProvider::GenerateNonce(4)[1] << 8) |
+                        (CryptoProvider::GenerateNonce(4)[2] << 16) |
+                        (CryptoProvider::GenerateNonce(4)[3] << 24);
+        secureHdr.SetNonce(nonce);
+
+        // Include certificate every 10 packets
+        if (m_seqNum % 10 == 0 && m_certificate != 0)
+          {
+            secureHdr.SetCertPresent(true);
+            std::vector<uint8_t> certBytes = m_certificate->ToBytes();
+            secureHdr.SetCertificate(certBytes);
+          }
+        else
+          {
+            secureHdr.SetCertPresent(false);
+          }
+
+        // Sign the header (without signature field)
+        std::vector<uint8_t> dataToSign = secureHdr.SerializeWithoutSignature();
+        std::vector<uint8_t> signature = m_nodeKey->Sign(dataToSign);
+        secureHdr.SetSignature(signature.data(), signature.size());
+
+        // Add header to packet
+        packet->AddHeader(secureHdr);
+        hdrSize = secureHdr.GetSerializedSize();
+
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() --> SECURE STDMA (mode=" << (uint32_t)m_mode << ", seqNum=" << m_seqNum << ", certPresent=" << (secureHdr.GetCertPresent() ? 1 : 0) << ")");
+
+        // Increment sequence number
+        m_seqNum++;
+      }
+    else
+      {
+        StdmaHeader stdmaHdr;
+        stdmaHdr.SetOffset(offset);
+        stdmaHdr.SetTimeout(timeout);
+        stdmaHdr.SetLatitude(mobility->GetPosition().x);
+        stdmaHdr.SetLongitude(mobility->GetPosition().y);
+        packet->AddHeader(stdmaHdr);
+        hdrSize = stdmaHdr.GetSerializedSize();
+
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() --> STDMA.latitude: " << stdmaHdr.GetLatitude());
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() --> STDMA.longitude: " << stdmaHdr.GetLongitude());
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() --> STDMA.timeout: " << (uint32_t) stdmaHdr.GetTimeout());
+        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() --> STDMA.offset: " << stdmaHdr.GetOffset());
+      }
 
     // 3b) Create a frame check sequence trailer
     ns3::WifiMacTrailer fcs;
-    const uint32_t slotBytes = packet->GetSize() + stdmaHdr.GetSerializedSize() + wifiMacHdr.GetSize() + fcs.GetSerializedSize();
+    const uint32_t slotBytes = packet->GetSize() + hdrSize + wifiMacHdr.GetSize() + fcs.GetSerializedSize();
     ns3::WifiTxVector txVector(m_wifiMode, 1, 0, false, 1, 1, false);
     ns3::Time txDuration = m_phy->CalculateTxDuration(slotBytes, txVector, m_wifiPreamble);
     wifiMacHdr.SetDuration(txDuration);
 
-    // 3c) Add everything to the packet
-    packet->AddHeader(stdmaHdr);
+    // 3c) Add everything to the packet (headers already added above)
     packet->AddHeader(wifiMacHdr);
     packet->AddTrailer(fcs);
 
     NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() transmitting packet " << packet->GetUid() << " with packet->GetSize() = " << packet->GetSize());
-    NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() --> STDMA.latitude: " << stdmaHdr.GetLatitude());
-    NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() --> STDMA.longitude: " << stdmaHdr.GetLongitude());
-    NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() --> STDMA.timeout: " << (uint32_t) stdmaHdr.GetTimeout());
-    NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() --> STDMA.offset: " << stdmaHdr.GetOffset());
     NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:DoTransmit() current global slot id " << m_manager->GetGlobalSlotIndexForTimestamp(ns3::Simulator::Now()));
 
     // 3d) Send packet through physical layer
@@ -633,6 +737,40 @@ namespace stdma
   }
 
   void
+  StdmaMac::SetCryptoKeys(ns3::Ptr<CryptoKeyPair> nodeKey, ns3::Ptr<CryptoCertificate> certificate)
+  {
+    NS_LOG_FUNCTION (this);
+    m_nodeKey = nodeKey;
+    m_certificate = certificate;
+  }
+
+  void
+  StdmaMac::SetCACertificate(ns3::Ptr<CryptoCertificate> caCert)
+  {
+    NS_LOG_FUNCTION (this);
+    m_caCertificate = caCert;
+  }
+
+  void
+  StdmaMac::SetSecurityEnabled(bool enable)
+  {
+    NS_LOG_FUNCTION (this << enable);
+    m_securityEnabled = enable;
+  }
+
+  bool
+  StdmaMac::IsSecurityEnabled() const
+  {
+    return m_securityEnabled;
+  }
+
+  ns3::Ptr<NeighborCache>
+  StdmaMac::GetNeighborCache() const
+  {
+    return m_neighborCache;
+  }
+
+  void
   StdmaMac::Receive (ns3::Ptr<ns3::Packet> packet, double rxSnr, ns3::WifiMode txMode, ns3::WifiPreamble preamble)
   {
     NS_LOG_FUNCTION(this << packet << rxSnr << txMode << preamble);
@@ -671,29 +809,150 @@ namespace stdma
       }
     else
       {
-        // Try to decode the StdmaHeader...
-        StdmaHeader stdmaHdr;
-        packet->RemoveHeader(stdmaHdr);
-        // If the type id of this header is not a STDMA header
-        if (stdmaHdr.GetTypeId() != StdmaHeader::GetTypeId())
+        // Try to decode the STDMA header - first try SecureStdmaHeader, then fall back to StdmaHeader
+        ns3::Mac48Address from = wifiMacHdr.GetAddr2();
+        uint32_t current = m_manager->GetSlotIndexForTimestamp(ns3::Simulator::Now());
+        ns3::Vector position(0, 0, 0);
+        uint8_t timeout = 0;
+        uint16_t offset = 0;
+        bool networkEntry = false;
+        bool isSecure = false;
+
+        // Attempt to read as SecureStdmaHeader first
+        if (m_securityEnabled)
           {
-            NS_FATAL_ERROR("StdmaMac:Receive() " << m_self << " the packet received did not contain a STDMA header, which is unexpected.");
+            SecureStdmaHeader secureHdr;
+            packet->PeekHeader(secureHdr);
+            if (secureHdr.GetTypeId() == SecureStdmaHeader::GetTypeId())
+              {
+                packet->RemoveHeader(secureHdr);
+                isSecure = true;
+
+                NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() --> SECURE STDMA (mode=" << (uint32_t)secureHdr.GetMode() << ", certPresent=" << (secureHdr.GetCertPresent() ? 1 : 0) << ")");
+
+                // Extract position and slot info from secure header
+                position = ns3::Vector(secureHdr.GetLatitude(), secureHdr.GetLongitude(), 0);
+                timeout = secureHdr.GetTimeout();
+                offset = secureHdr.GetOffset();
+                networkEntry = secureHdr.GetNetworkEntry();
+
+                // Security verification
+                if (m_caCertificate != 0)
+                  {
+                    // Verify timestamp is not too old
+                    uint64_t nowMs = ns3::Simulator::Now().GetMilliSeconds();
+                    if (nowMs > secureHdr.GetTimestamp())
+                      {
+                        uint64_t age = nowMs - secureHdr.GetTimestamp();
+                        if (age > m_maxTimestampAge.GetMilliSeconds())
+                          {
+                            NS_LOG_WARN(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() --> REJECT: timestamp too old (" << age << "ms > " << m_maxTimestampAge.GetMilliSeconds() << "ms)");
+                            return;
+                          }
+                      }
+
+                    // Verify signature
+                    std::vector<uint8_t> dataToVerify = secureHdr.SerializeWithoutSignature();
+                    size_t sigLen = SecureStdmaHeader::SIG_SIZE;
+                    uint8_t sigBuf[64];
+                    secureHdr.GetSignature(sigBuf, &sigLen);
+
+                    bool signatureValid = false;
+                    if (secureHdr.GetCertPresent())
+                      {
+                        // Certificate was included, verify using included cert
+                        std::vector<uint8_t> peerCertBytes = secureHdr.GetCertificate();
+                        ns3::Ptr<CryptoCertificate> peerCert = CryptoProvider::LoadCertificateFromDer(peerCertBytes);
+                        if (peerCert != 0 && peerCert->IsValid())
+                          {
+                            signatureValid = peerCert->GetPublicKey()->Verify(dataToVerify, std::vector<uint8_t>(sigBuf, sigBuf + sigLen));
+                          }
+                      }
+                    else
+                      {
+                        // Use cached key if available
+                        if (m_neighborCache->HasKey(from))
+                          {
+                            std::vector<uint8_t> peerKey = m_neighborCache->GetKey(from);
+                            ns3::Ptr<CryptoKeyPair> cachedKeyPair = CryptoProvider::LoadKeyPairFromBytes(peerKey);
+                            if (cachedKeyPair != 0)
+                              {
+                                signatureValid = cachedKeyPair->Verify(dataToVerify, std::vector<uint8_t>(sigBuf, sigBuf + sigLen));
+                              }
+                          }
+                      }
+
+                    if (!signatureValid)
+                      {
+                        NS_LOG_WARN(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() --> REJECT: signature verification failed from " << from);
+                        return;
+                      }
+
+                    // Verify certificate chain if peer cert is provided
+                    if (secureHdr.GetCertPresent() && m_neighborCache->HasKey(from))
+                      {
+                        std::vector<uint8_t> peerCertBytes = secureHdr.GetCertificate();
+                        ns3::Ptr<CryptoCertificate> peerCert = CryptoProvider::LoadCertificateFromDer(peerCertBytes);
+                        if (peerCert != 0)
+                          {
+                            bool certValid = peerCert->Verify(m_caCertificate);
+                            if (!certValid)
+                              {
+                                NS_LOG_WARN(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() --> REJECT: certificate verification failed from " << from);
+                                return;
+                              }
+                          }
+                      }
+
+                    // Update neighbor cache with peer certificate if present
+                    if (secureHdr.GetCertPresent())
+                      {
+                        std::vector<uint8_t> peerCertBytes = secureHdr.GetCertificate();
+                        if (!m_neighborCache->HasKey(from))
+                          {
+                            // Extract public key from certificate for neighbor cache
+                            ns3::Ptr<CryptoCertificate> peerCert = CryptoProvider::LoadCertificateFromDer(peerCertBytes);
+                            if (peerCert != 0)
+                              {
+                                std::vector<uint8_t> pubKey = peerCert->GetPublicKey()->GetPublicKeyBytes();
+                                m_neighborCache->AddKey(from, pubKey);
+                                NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() --> Added peer key for " << from);
+                              }
+                          }
+                      }
+                  }
+
+                NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() latitude = " << secureHdr.GetLatitude());
+                NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() longitude = " << secureHdr.GetLongitude());
+                NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() timeout = " << (uint32_t) secureHdr.GetTimeout());
+                NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() offset = " << secureHdr.GetOffset());
+              }
           }
 
-        // If it had a STDMA header, continue...
+        // If not a secure header, try regular StdmaHeader
+        if (!isSecure)
+          {
+            StdmaHeader stdmaHdr;
+            packet->RemoveHeader(stdmaHdr);
+            if (stdmaHdr.GetTypeId() != StdmaHeader::GetTypeId())
+              {
+                NS_FATAL_ERROR("StdmaMac:Receive() " << m_self << " the packet received did not contain a STDMA header, which is unexpected.");
+              }
+
+            position = ns3::Vector(stdmaHdr.GetLatitude(), stdmaHdr.GetLongitude(), 0);
+            timeout = stdmaHdr.GetTimeout();
+            offset = stdmaHdr.GetOffset();
+            networkEntry = stdmaHdr.GetNetworkEntry();
+
+            NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() received a broadcast packet from " << from);
+            NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() current slot = " << current);
+            NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() latitude = " << stdmaHdr.GetLatitude());
+            NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() longitude = " << stdmaHdr.GetLongitude());
+            NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() timeout = " << (uint32_t) stdmaHdr.GetTimeout());
+            NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() offset = " << stdmaHdr.GetOffset());
+          }
+
         const ns3::Mac48Address to = wifiMacHdr.GetAddr1();
-        const ns3::Mac48Address from = wifiMacHdr.GetAddr2();
-        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() received a broadcast packet from " << from);
-        uint32_t current = m_manager->GetSlotIndexForTimestamp(ns3::Simulator::Now());
-        ns3::Vector position(stdmaHdr.GetLatitude(), stdmaHdr.GetLongitude(), 0);
-        uint8_t timeout = stdmaHdr.GetTimeout();
-        uint16_t offset = stdmaHdr.GetOffset();
-        bool networkEntry = stdmaHdr.GetNetworkEntry();
-        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() current slot = " << current);
-        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() latitude = " << stdmaHdr.GetLatitude());
-        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() longitude = " << stdmaHdr.GetLongitude());
-        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() timeout = " << (uint32_t) stdmaHdr.GetTimeout());
-        NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() offset = " << stdmaHdr.GetOffset());
 
         // ... mark the current slot as externally allocated if the timeout is greater than 0...
         if (timeout > 0)
@@ -701,7 +960,7 @@ namespace stdma
             NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() --> timeout is greater than zero");
             uint32_t next = (current + offset < m_manager->GetSlotsPerFrame()) ? current + offset : current + offset - m_manager->GetSlotsPerFrame();
             NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() next = " << next);
-            m_manager->MarkSlotAsAllocated(current, stdmaHdr.GetTimeout(), from, position);
+            m_manager->MarkSlotAsAllocated(current, timeout, from, position);
             // in this case, the offset further identifies the next expected transmission slot
             m_manager->MarkSlotAsAllocated(next, 1, from, position);
             NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() next refers to the global slot id " << m_manager->GetGlobalSlotIndexForTimestamp(ns3::Simulator::Now()) + offset);

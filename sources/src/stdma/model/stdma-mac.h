@@ -30,6 +30,9 @@
 #include "ns3/vector.h"
 #include "ns3/wifi-mac-queue.h"
 #include "stdma-slot-manager.h"
+#include "stdma-crypto.h"
+#include "stdma-neighbor-cache.h"
+#include "stdma-secure-header.h"
 
 #include "ns3/wifi-phy.h"
 #include "ns3/ssid.h"
@@ -256,6 +259,48 @@ namespace stdma {
     void
     ConfigureStandard(enum ns3::WifiPhyStandard standard);
 
+    // === Security configuration ===
+
+    /**
+     * Set the cryptographic keys and certificate for this node.
+     * Must be called before StartInitializationPhase() for TX security to work.
+     *
+     * \param nodeKey The node's own EC key pair
+     * \param certificate The node's self-signed X.509 certificate
+     */
+    void
+    SetCryptoKeys(ns3::Ptr<CryptoKeyPair> nodeKey, ns3::Ptr<CryptoCertificate> certificate);
+
+    /**
+     * Set the CA certificate for verifying peer certificates.
+     * Must be called before StartInitializationPhase() for RX security to work.
+     *
+     * \param caCert The CA certificate used to validate peer certificates
+     */
+    void
+    SetCACertificate(ns3::Ptr<CryptoCertificate> caCert);
+
+    /**
+     * Enable or disable security. When disabled (default), regular StdmaHeader is used.
+     * When enabled, SecureStdmaHeader with signing/verification is used.
+     *
+     * \param enable True to enable security, false to disable
+     */
+    void
+    SetSecurityEnabled(bool enable);
+
+    /**
+     * Get the current security enabled state.
+     */
+    bool
+    IsSecurityEnabled() const;
+
+    /**
+     * Get the neighbor cache for key and sequence number management.
+     */
+    ns3::Ptr<NeighborCache>
+    GetNeighborCache() const;
+
   protected:
 
     /**
@@ -330,6 +375,16 @@ namespace stdma {
     bool m_rxOngoing;
     ns3::Time m_rxStart;
     bool m_startedUp;
+
+    // Security state
+    bool m_securityEnabled;
+    ns3::Ptr<CryptoKeyPair> m_nodeKey;
+    ns3::Ptr<CryptoCertificate> m_certificate;
+    ns3::Ptr<CryptoCertificate> m_caCertificate;
+    uint32_t m_seqNum;
+    ns3::Ptr<NeighborCache> m_neighborCache;
+    ns3::Time m_maxTimestampAge;
+    uint8_t m_mode;  // MODE_HANDSHAKE or MODE_DATA
 
     ns3::TracedCallback<ns3::Time, ns3::Time, ns3::Time> m_startupTrace;
     ns3::TracedCallback<ns3::Ptr<const ns3::Packet>, ns3::Time, bool> m_networkEntryTrace;

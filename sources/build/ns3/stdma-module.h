@@ -12,5 +12,6 @@
 #include "stdma-mac-helper.h"
 #include "stdma-mac.h"
 #include "stdma-net-device.h"
+#include "stdma-secure-helper.h"
 #include "stdma-slot-manager.h"
 #endif

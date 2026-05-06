@@ -19,7 +19,7 @@
  *         Tristan Gaugel <tristan.gaugel@kit.edu>
  */
 
-#ifndef STMDA_MAC_H
+#ifndef STDMA_MAC_H
 #define STDMA_MAC_H
 
 #include "ns3/packet.h"
@@ -30,9 +30,9 @@
 #include "ns3/vector.h"
 #include "ns3/wifi-mac-queue.h"
 #include "stdma-slot-manager.h"
-#include "stdma-crypto.h"
-#include "stdma-neighbor-cache.h"
-#include "stdma-secure-header.h"
+#include "ns3/stdma-crypto.h"
+#include "ns3/stdma-neighbor-cache.h"
+#include "ns3/stdma-secure-header.h"
 
 #include "ns3/wifi-phy.h"
 #include "ns3/ssid.h"

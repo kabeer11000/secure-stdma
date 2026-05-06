@@ -13,8 +13,10 @@
 #include "stdma-mac-helper.h"
 #include "ns3/node-container.h"
 #include "ns3/net-device-container.h"
-#include "ns3/wifi-phy-helper.h"
+#include "ns3/wifi-helper.h"
+#include "ns3/stdma-crypto.h"
 #include <string>
+#include <map>
 
 namespace stdma {
 

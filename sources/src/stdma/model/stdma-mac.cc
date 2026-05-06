@@ -40,7 +40,7 @@
 #include "stdma-mac.h"
 #include "stdma-net-device.h"
 #include "stdma-header.h"
-#include "stdma-secure-header.h"
+#include "ns3/stdma-secure-header.h"
 #include <sstream>
 #include <iostream>
 
@@ -399,7 +399,7 @@ namespace stdma
           }
 
         std::vector<uint8_t> dataToSign = secureHdr.SerializeWithoutSignature();
-        std::vector<uint8_t> signature = m_nodeKey->Sign(dataToSign);
+        std::vector<uint8_t> signature = m_nodeKey->Sign(dataToSign.data(), dataToSign.size());
         secureHdr.SetSignature(signature.data(), signature.size());
 
         packet->AddHeader(secureHdr);
@@ -549,7 +549,7 @@ namespace stdma
 
         // Sign the header (without signature field)
         std::vector<uint8_t> dataToSign = secureHdr.SerializeWithoutSignature();
-        std::vector<uint8_t> signature = m_nodeKey->Sign(dataToSign);
+        std::vector<uint8_t> signature = m_nodeKey->Sign(dataToSign.data(), dataToSign.size());
         secureHdr.SetSignature(signature.data(), signature.size());
 
         // Add header to packet
@@ -865,7 +865,10 @@ namespace stdma
                         ns3::Ptr<CryptoCertificate> peerCert = CryptoProvider::LoadCertificateFromDer(peerCertBytes);
                         if (peerCert != 0 && peerCert->IsValid())
                           {
-                            signatureValid = peerCert->GetPublicKey()->Verify(dataToVerify, std::vector<uint8_t>(sigBuf, sigBuf + sigLen));
+                            std::vector<uint8_t> pubKeyBytes = peerCert->GetPublicKeyBytes();
+                            ns3::Ptr<CryptoKeyPair> pubKey = CryptoProvider::LoadKeyPairFromBytes(pubKeyBytes);
+                            if (pubKey != 0)
+                              signatureValid = pubKey->Verify(dataToVerify.data(), dataToVerify.size(), sigBuf, sigLen);
                           }
                       }
                     else
@@ -877,7 +880,7 @@ namespace stdma
                             ns3::Ptr<CryptoKeyPair> cachedKeyPair = CryptoProvider::LoadKeyPairFromBytes(peerKey);
                             if (cachedKeyPair != 0)
                               {
-                                signatureValid = cachedKeyPair->Verify(dataToVerify, std::vector<uint8_t>(sigBuf, sigBuf + sigLen));
+                                signatureValid = cachedKeyPair->Verify(dataToVerify.data(), dataToVerify.size(), sigBuf, sigLen);
                               }
                           }
                       }
@@ -914,7 +917,7 @@ namespace stdma
                             ns3::Ptr<CryptoCertificate> peerCert = CryptoProvider::LoadCertificateFromDer(peerCertBytes);
                             if (peerCert != 0)
                               {
-                                std::vector<uint8_t> pubKey = peerCert->GetPublicKey()->GetPublicKeyBytes();
+                                std::vector<uint8_t> pubKey = peerCert->GetPublicKeyBytes();
                                 m_neighborCache->AddKey(from, pubKey);
                                 NS_LOG_DEBUG(ns3::Simulator::Now() << " " << ns3::Simulator::GetContext() << " StdmaMac:Receive() --> Added peer key for " << from);
                               }

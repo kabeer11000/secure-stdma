@@ -8,9 +8,9 @@
  */
 
 #include "stdma-secure-helper.h"
-#include "stdma-mac.h"
-#include "stdma-net-device.h"
-#include "stdma-crypto.h"
+#include "ns3/stdma-mac.h"
+#include "ns3/stdma-net-device.h"
+#include "ns3/stdma-crypto.h"
 #include "ns3/stdma-mac.h"
 #include "ns3/stdma-net-device.h"
 #include "ns3/wifi-phy.h"

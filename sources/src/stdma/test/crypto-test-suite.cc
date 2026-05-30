@@ -7,14 +7,13 @@
  * published by the Free Software Foundation;
  */
 
+#include "ns3/test.h"
+#include "ns3/log.h"
 #include "stdma-crypto.h"
 #include "stdma-secure-header.h"
-#include "ns3/test.h"
 #include <vector>
 
-using namespace stdma;
-
-NS_LOG_COMPONENT_DEFINE("stdma.CryptoTestSuite");
+NS_LOG_COMPONENT_DEFINE ("stdma.CryptoTestSuite");
 
 namespace stdma {
 
@@ -25,7 +24,7 @@ class CryptoKeyGenTestCase : public ns3::TestCase {
 public:
     CryptoKeyGenTestCase() : ns3::TestCase("Crypto: Key Generation") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Generate a key pair
@@ -61,7 +60,7 @@ class CryptoCertificateTestCase : public ns3::TestCase {
 public:
     CryptoCertificateTestCase() : ns3::TestCase("Crypto: Certificate") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Generate CA key and self-signed certificate
@@ -105,7 +104,7 @@ class CryptoDerEncodingTestCase : public ns3::TestCase {
 public:
     CryptoDerEncodingTestCase() : ns3::TestCase("Crypto: DER Encoding") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Generate a key pair and certificate
@@ -139,12 +138,12 @@ class SecureHeaderSerializationTestCase : public ns3::TestCase {
 public:
     SecureHeaderSerializationTestCase() : ns3::TestCase("SecureHeader: Serialization") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         SecureStdmaHeader hdr;
-        hdr.SetLatitude(123.456);
-        hdr.SetLongitude(789.012);
+        hdr.SetLatitude(123.0);
+        hdr.SetLongitude(789.0);
         hdr.SetOffset(42);
         hdr.SetTimeout(5);
         hdr.SetNetworkEntry(false);
@@ -164,15 +163,15 @@ public:
         NS_TEST_ASSERT_MSG_GT(size, 0, "Serialized size should be greater than 0");
 
         // Serialize to buffer
-        ns3::Buffer buffer(size);
-        ns3::Buffer::Iterator it = buffer.Begin();
-        hdr.Serialize(it);
+        ns3::Buffer buffer;
+        buffer.AddAtEnd (size);
+        ns3::Buffer::Iterator it = buffer.Begin ();
+        hdr.Serialize (it);
 
-        // Deserialize
-        ns3::Buffer buffer2(size);
-        ns3::Buffer::Iterator it2 = buffer2.Begin();
+        // Deserialize from the same buffer
+        ns3::Buffer::Iterator it2 = buffer.Begin ();
         SecureStdmaHeader hdr2;
-        hdr2.Deserialize(it2);
+        hdr2.Deserialize (it2);
 
         // Verify fields
         NS_TEST_ASSERT_MSG_EQ(hdr2.GetLatitude(), hdr.GetLatitude(), "Latitude mismatch");
@@ -196,9 +195,9 @@ public:
  */
 class CryptoSignVerifyTestCase : public ns3::TestCase {
 public:
-    CryptoSignVerifyTestCase() : ns3::TestCase("Crypto: Sign/Verify") {}
+    CryptoSignVerifyTestCase() : ns3::TestCase("Crypto: Sign and Verify") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Generate two key pairs (signer and verifier)
@@ -227,8 +226,9 @@ public:
         bool valid = signerKey->Verify(dataToSign, signature);
         NS_TEST_ASSERT_MSG_EQ(valid, true, "Verification with key pair should succeed");
 
-        // Verify with signer's certificate public key
-        valid = signerCert->GetPublicKey()->Verify(dataToSign, signature);
+        // Verify with signer's certificate public key (reconstruct from cert bytes)
+        ns3::Ptr<CryptoKeyPair> certPubKey = CryptoProvider::LoadKeyPairFromBytes(signerCert->GetPublicKeyBytes());
+        valid = certPubKey->Verify(dataToSign, signature);
         NS_TEST_ASSERT_MSG_EQ(valid, true, "Verification with cert public key should succeed");
 
         // Verification with wrong key should fail

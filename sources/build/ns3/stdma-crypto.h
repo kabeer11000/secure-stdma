@@ -42,6 +42,11 @@ public:
      */
     virtual std::vector<uint8_t> Sign(const uint8_t* msg, size_t msgLen);
 
+    /** Convenience overload: sign a byte vector. */
+    std::vector<uint8_t> Sign(const std::vector<uint8_t>& data) {
+        return Sign(data.data(), data.size());
+    }
+
     /** Verify a signature over a pre-hashed input */
     virtual bool VerifyHash(const uint8_t* hash, size_t hashLen,
                             const uint8_t* sig, size_t sigLen) = 0;
@@ -52,6 +57,11 @@ public:
      */
     virtual bool Verify(const uint8_t* msg, size_t msgLen,
                         const uint8_t* sig, size_t sigLen);
+
+    /** Convenience overload: verify with byte vectors. */
+    bool Verify(const std::vector<uint8_t>& data, const std::vector<uint8_t>& sig) {
+        return Verify(data.data(), data.size(), sig.data(), sig.size());
+    }
 
     /** Export public key as PEM string */
     virtual std::string ToPem() const = 0;

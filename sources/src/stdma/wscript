@@ -47,7 +47,9 @@ def build(bld):
     	'test/crypto-test-suite.cc',
     	'test/stdma-benchmark.cc',
     	'test/stdma-security-scenarios.cc',
+    	'test/stdma-integration-test.cc',
         ]
+    obj_test.includes = ['crypto', 'model', 'helper']
 
     headers = bld(features='ns3header')
     headers.module = 'stdma'

@@ -54,8 +54,8 @@ public:
 
         uint8_t buf[64];
         memset(buf, 0, 64);
-        BN_bn2binpad(x, buf + 32, 32);
-        BN_bn2binpad(y, buf + 64, 32);
+        BN_bn2binpad(x, buf,      32);
+        BN_bn2binpad(y, buf + 32, 32);
 
         BN_free(x);
         BN_free(y);
@@ -65,7 +65,7 @@ public:
         return result;
     }
 
-    void SignHash(const uint8_t* hash, size_t hashLen, uint8_t* sigOut) override {
+    void SignHash (const uint8_t* hash, size_t hashLen, uint8_t* sigOut) override {
         if (!m_pkey || !hash || !sigOut) return;
 
         EC_KEY* ecKey = EVP_PKEY_get1_EC_KEY(m_pkey);
@@ -81,8 +81,8 @@ public:
         const BIGNUM* s = ECDSA_SIG_get0_s(sig);
 
         memset(sigOut, 0, 64);
-        BN_bn2binpad(r, sigOut + 32, 32);
-        BN_bn2binpad(s, sigOut + 64, 32);
+        BN_bn2binpad(r, sigOut,      32);
+        BN_bn2binpad(s, sigOut + 32, 32);
 
         ECDSA_SIG_free(sig);
         EC_KEY_free(ecKey);
@@ -196,8 +196,8 @@ public:
 
         uint8_t buf[64];
         memset(buf, 0, 64);
-        BN_bn2binpad(x, buf + 32, 32);
-        BN_bn2binpad(y, buf + 64, 32);
+        BN_bn2binpad(x, buf,      32);
+        BN_bn2binpad(y, buf + 32, 32);
 
         BN_free(x);
         BN_free(y);

@@ -8,6 +8,7 @@ CC = ['/usr/bin/gcc']
 CCDEFINES = []
 CCFLAGS = ['-O3', '-g', '-Wall', '-Werror', '-Wno-error', '-std=gnu++14', '-march=native', '-Wno-error=deprecated-declarations', '-fstrict-aliasing', '-Wstrict-aliasing']
 CCFLAGS_PTHREAD = '-pthread'
+CCFLAGS_PYEXT = ['-fvisibility=hidden']
 CCLNK_SRC_F = []
 CCLNK_TGT_F = ['-o']
 CC_NAME = 'gcc'
@@ -15,8 +16,8 @@ CC_SRC_F = []
 CC_TGT_F = ['-c', '-o']
 CC_VERSION = ('13', '3', '0')
 CFLAGS_MACBUNDLE = ['-fPIC']
-CFLAGS_PYEMBED = ['-fno-strict-aliasing', '-fwrapv', '-fno-strict-aliasing', '-fno-strict-aliasing', '-fwrapv']
-CFLAGS_PYEXT = ['-fno-strict-aliasing', '-fwrapv', '-fno-strict-aliasing']
+CFLAGS_PYEMBED = ['-fno-strict-aliasing', '-std=c99', '-fwrapv', '-fno-strict-aliasing']
+CFLAGS_PYEXT = ['-fno-strict-aliasing', '-std=c99', '-fwrapv', '-fno-strict-aliasing']
 CFLAGS_cshlib = ['-fPIC']
 COMPILER_CC = 'gcc'
 COMPILER_CXX = 'g++'
@@ -26,8 +27,8 @@ CXX = ['/usr/bin/g++']
 CXXFLAGS = ['-Wno-error', '-std=gnu++14', '-march=native']
 CXXFLAGS_MACBUNDLE = ['-fPIC']
 CXXFLAGS_PTHREAD = '-pthread'
-CXXFLAGS_PYEMBED = ['-fno-strict-aliasing', '-fwrapv', '-fno-strict-aliasing', '-fno-strict-aliasing', '-fwrapv']
-CXXFLAGS_PYEXT = ['-fno-strict-aliasing', '-fwrapv', '-fno-strict-aliasing']
+CXXFLAGS_PYEMBED = ['-fno-strict-aliasing', '-std=c99', '-fwrapv', '-fno-strict-aliasing']
+CXXFLAGS_PYEXT = ['-fno-strict-aliasing', '-std=c99', '-fwrapv', '-fno-strict-aliasing', '-fvisibility=hidden', '-Wno-array-bounds']
 CXXFLAGS_cxxshlib = ['-fPIC']
 CXXLNK_SRC_F = []
 CXXLNK_TGT_F = ['-o']
@@ -37,7 +38,7 @@ CXX_TGT_F = ['-c', '-o']
 DATADIR = '/usr/local/share'
 DATAROOTDIR = '/usr/local/share'
 DEFINES = ['HAVE_SYS_IOCTL_H=1', 'HAVE_IF_NETS_H=1', 'HAVE_NET_ETHERNET_H=1', 'HAVE_PACKET_H=1', 'HAVE_SQLITE3=1', 'HAVE_IF_TUN_H=1']
-DEFINES_PYEMBED = ['NDEBUG', 'NDEBUG']
+DEFINES_PYEMBED = ['NDEBUG']
 DEFINES_PYEXT = ['NDEBUG']
 DEFINES_ST = '-D%s'
 DEST_BINFMT = 'elf'
@@ -59,29 +60,33 @@ ENABLE_REAL_TIME = True
 ENABLE_STATIC_NS3 = False
 ENABLE_SUDO = False
 ENABLE_TAP = True
-ENABLE_TESTS = False
+ENABLE_TESTS = True
 ENABLE_THREADING = True
 EXAMPLE_DIRECTORIES = ['tutorial', 'stats', 'routing', 'udp', 'wireless', 'ipv6', 'udp-client-server', 'realtime', 'matrix-topology', 'error-model', 'tcp', 'energy', 'naming', 'socket']
 EXEC_PREFIX = '/usr/local'
 HTMLDIR = '/usr/local/share/doc/ns'
 INCLUDEDIR = '/usr/local/include'
-INCLUDES_PYEMBED = ['/usr/local/include/python2.7']
-INCLUDES_PYEXT = ['/usr/local/include/python2.7']
+INCLUDES_PYEMBED = ['/root/.pyenv/versions/2.7.18/include/python2.7']
+INCLUDES_PYEXT = ['/root/.pyenv/versions/2.7.18/include/python2.7']
 INFODIR = '/usr/local/share/info'
 INT64X64_USE_128 = 1
 LIBDIR = '/usr/local/lib'
 LIBEXECDIR = '/usr/local/libexec'
-LIBPATH_PYEMBED = ['/usr/local/lib', '/usr/local/lib/python2.7/config']
-LIBPATH_PYTHON2.7 = ['/usr/local/lib']
+LIBPATH_PYEMBED = ['/root/.pyenv/versions/2.7.18/lib']
+LIBPATH_PYEXT = ['/root/.pyenv/versions/2.7.18/lib']
+LIBPATH_PYTHON2.7 = ['/root/.pyenv/versions/2.7.18/lib']
 LIBPATH_ST = '-L%s'
 LIB_BOOST = []
-LIB_PYEMBED = ['python2.7', 'dl', 'm']
+LIB_PYEMBED = ['python2.7']
+LIB_PYEXT = ['python2.7']
 LIB_PYTHON2.7 = ['python2.7']
 LIB_RT = ['rt']
 LIB_SQLITE3 = ['sqlite3']
 LIB_ST = '-l%s'
 LINKFLAGS_MACBUNDLE = ['-bundle', '-undefined', 'dynamic_lookup']
 LINKFLAGS_PTHREAD = '-pthread'
+LINKFLAGS_PYEMBED = ['-Wl,-rpath,/root/.pyenv/versions/2.7.18/lib', '-std=c99']
+LINKFLAGS_PYEXT = ['-Wl,-rpath,/root/.pyenv/versions/2.7.18/lib', '-Wl,-rpath,/root/.pyenv/versions/2.7.18/lib', '-std=c99']
 LINKFLAGS_cshlib = ['-shared']
 LINKFLAGS_cstlib = ['-Wl,-Bstatic']
 LINKFLAGS_cxxshlib = ['-shared']
@@ -97,7 +102,7 @@ NS3_EXECUTABLE_PATH = ['/root/secure-stdma/sources/build/src/emu', '/root/secure
 NS3_LIBS = ['ssl', 'crypto']
 NS3_MODULES = ['ns3-antenna', 'ns3-aodv', 'ns3-applications', 'ns3-bridge', 'ns3-buildings', 'ns3-config-store', 'ns3-core', 'ns3-csma', 'ns3-csma-layout', 'ns3-dsdv', 'ns3-dsr', 'ns3-emu', 'ns3-energy', 'ns3-fd-net-device', 'ns3-flow-monitor', 'ns3-internet', 'ns3-lte', 'ns3-mesh', 'ns3-mobility', 'ns3-mpi', 'ns3-netanim', 'ns3-network', 'ns3-nix-vector-routing', 'ns3-olsr', 'ns3-point-to-point', 'ns3-point-to-point-layout', 'ns3-propagation', 'ns3-spectrum', 'ns3-stats', 'ns3-stdma', 'ns3-tap-bridge', 'ns3-test', 'ns3-topology-read', 'ns3-uan', 'ns3-virtual-net-device', 'ns3-wifi', 'ns3-wimax']
 NS3_MODULE_PATH = ['/usr/lib/gcc/x86_64-linux-gnu/13', '/root/secure-stdma/sources/build']
-NS3_OPTIONAL_FEATURES = [('python', 'Python Bindings', False, 'Python library or headers missing'), ('brite', 'BRITE Integration', False, 'BRITE not enabled (see option --with-brite)'), ('nsclick', 'NS-3 Click Integration', False, 'nsclick not enabled (see option --with-nsclick)'), ('GtkConfigStore', 'GtkConfigStore', [], "library 'gtk+-2.0 >= 2.12' not found"), ('XmlIo', 'XmlIo', [], "library 'libxml-2.0 >= 2.7' not found"), ('Threading', 'Threading Primitives', True, '<pthread.h> include not detected'), ('RealTime', 'Real Time Simulator', True, 'threading not enabled'), ('EmuNetDevice', 'Emulated Net Device', True, '<netpacket/packet.h> include not detected'), ('FdNetDevice', 'File descriptor NetDevice', True, 'FdNetDevice module enabled'), ('TapFdNetDevice', 'Tap FdNetDevice', True, 'Tap support enabled'), ('EmuFdNetDevice', 'Emulation FdNetDevice', True, 'Emulation support enabled'), ('PlanetLabFdNetDevice', 'PlanetLab FdNetDevice', False, 'PlanetLab operating system not detected (see option --force-planetlab)'), ('nsc', 'Network Simulation Cradle', False, 'NSC not found (see option --with-nsc)'), ('mpi', 'MPI Support', False, 'option --enable-mpi not selected'), ('openflow', 'NS-3 OpenFlow Integration', False, 'Required boost libraries not found'), ('SqliteDataOutput', 'SQlite stats data output', '-lsqlite3 \n', "library 'sqlite3' not found"), ('TapBridge', 'Tap Bridge', True, '<linux/if_tun.h> include not detected'), ('PyViz', 'PyViz visualizer', False, 'Python Bindings are needed but not enabled'), ('ENABLE_SUDO', 'Use sudo to set suid bit', False, 'option --enable-sudo not selected'), ('ENABLE_TESTS', 'Build tests', False, 'defaults to disabled'), ('ENABLE_EXAMPLES', 'Build examples', False, 'defaults to disabled'), ('GSL', 'GNU Scientific Library (GSL)', [], 'GSL not found')]
+NS3_OPTIONAL_FEATURES = [('python', 'Python Bindings', False, 'PyBindGen missing'), ('brite', 'BRITE Integration', False, 'BRITE not enabled (see option --with-brite)'), ('nsclick', 'NS-3 Click Integration', False, 'nsclick not enabled (see option --with-nsclick)'), ('GtkConfigStore', 'GtkConfigStore', [], "library 'gtk+-2.0 >= 2.12' not found"), ('XmlIo', 'XmlIo', [], "library 'libxml-2.0 >= 2.7' not found"), ('Threading', 'Threading Primitives', True, '<pthread.h> include not detected'), ('RealTime', 'Real Time Simulator', True, 'threading not enabled'), ('EmuNetDevice', 'Emulated Net Device', True, '<netpacket/packet.h> include not detected'), ('FdNetDevice', 'File descriptor NetDevice', True, 'FdNetDevice module enabled'), ('TapFdNetDevice', 'Tap FdNetDevice', True, 'Tap support enabled'), ('EmuFdNetDevice', 'Emulation FdNetDevice', True, 'Emulation support enabled'), ('PlanetLabFdNetDevice', 'PlanetLab FdNetDevice', False, 'PlanetLab operating system not detected (see option --force-planetlab)'), ('nsc', 'Network Simulation Cradle', False, 'NSC not found (see option --with-nsc)'), ('mpi', 'MPI Support', False, 'option --enable-mpi not selected'), ('openflow', 'NS-3 OpenFlow Integration', False, 'Required boost libraries not found'), ('SqliteDataOutput', 'SQlite stats data output', '-lsqlite3 \n', "library 'sqlite3' not found"), ('TapBridge', 'Tap Bridge', True, '<linux/if_tun.h> include not detected'), ('PyViz', 'PyViz visualizer', False, 'Python Bindings are needed but not enabled'), ('ENABLE_SUDO', 'Use sudo to set suid bit', False, 'option --enable-sudo not selected'), ('ENABLE_TESTS', 'Build tests', True, 'option --enable-tests selected'), ('ENABLE_EXAMPLES', 'Build examples', False, 'defaults to disabled'), ('GSL', 'GNU Scientific Library (GSL)', [], 'GSL not found')]
 OLDINCLUDEDIR = '/usr/include'
 OPENSSL_FOUND = True
 PACKAGE = 'ns'
@@ -112,10 +117,10 @@ PYCMD = '"import sys, py_compile;py_compile.compile(sys.argv[1], sys.argv[2])"'
 PYFLAGS = ''
 PYFLAGS_OPT = '-O'
 PYO = 1
-PYTHON = ['/root/Python-2.7.18/python']
+PYTHON = ['/root/.pyenv/versions/2.7.18/bin/python']
 PYTHONARCHDIR = '/usr/local/lib/python2.7/site-packages'
 PYTHONDIR = '/usr/local/lib/python2.7/site-packages'
-PYTHON_CONFIG = '/usr/local/bin/python2.7-config'
+PYTHON_CONFIG = '/root/.pyenv/versions/2.7.18/bin/python-config'
 PYTHON_VERSION = '2.7'
 REQUIRED_BOOST_LIBS = ['system', 'signals', 'filesystem']
 RPATH_ST = '-Wl,-rpath,%s'

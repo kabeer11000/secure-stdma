@@ -63,8 +63,8 @@ bool
 NeighborCache::ValidateSeqNum(ns3::Mac48Address nodeId, uint32_t seqNum) {
     auto it = m_cache.find(nodeId);
     if (it == m_cache.end()) {
-        NS_LOG_WARN("No cached entry for node " << nodeId << " - possible late joiner");
-        return false;
+        // First encounter: accept so the MAC can learn the peer's key.
+        return true;
     }
     if (seqNum <= it->second.lastSeqNum) {
         NS_LOG_WARN("Replay attack detected from " << nodeId
@@ -76,11 +76,12 @@ NeighborCache::ValidateSeqNum(ns3::Mac48Address nodeId, uint32_t seqNum) {
 
 void
 NeighborCache::UpdateSeqNum(ns3::Mac48Address nodeId, uint32_t seqNum) {
-    auto it = m_cache.find(nodeId);
-    if (it != m_cache.end()) {
-        it->second.lastSeqNum = seqNum;
-        it->second.lastSeen = ns3::Simulator::Now();
-    }
+    // Create the entry if it does not exist so subsequent ValidateSeqNum calls
+    // can enforce strictly-increasing sequence numbers.
+    NeighborEntry& entry = m_cache[nodeId];
+    entry.nodeId = nodeId;
+    entry.lastSeqNum = seqNum;
+    entry.lastSeen = ns3::Simulator::Now();
 }
 
 uint32_t

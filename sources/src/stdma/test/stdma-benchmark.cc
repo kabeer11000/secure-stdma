@@ -11,9 +11,14 @@
  */
 
 #include "ns3/test.h"
+#include "ns3/log.h"
 #include "stdma-crypto.h"
 #include "stdma-secure-header.h"
 #include "stdma-neighbor-cache.h"
+#include "ns3/stdma-header.h"
+#include <chrono>
+
+NS_LOG_COMPONENT_DEFINE ("stdma.Benchmark");
 #include <vector>
 #include <algorithm>
 #include <numeric>
@@ -64,7 +69,7 @@ class CryptoLatencyBenchmarkTest : public ns3::TestCase {
 public:
     CryptoLatencyBenchmarkTest() : ns3::TestCase("Benchmark: Crypto Latency") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         const int ITERATIONS = 100;
@@ -315,7 +320,7 @@ class HeaderSizeBenchmarkTest : public ns3::TestCase {
 public:
     HeaderSizeBenchmarkTest() : ns3::TestCase("Benchmark: Header Sizes") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         std::cout << std::endl;
@@ -326,10 +331,8 @@ public:
         std::cout << "| Header Type                     |    Size (bytes) |" << std::endl;
         std::cout << "|----------------------------------|-----------------|" << std::endl;
 
-        // Plain STDMA header (from stdma-header.h)
-        // latitude(double=8) + longitude(double=8) + offset(uint16_t=2) + timeout(uint8_t=1) + entry(uint8_t=1) = 20
-        // But actual implementation is 12 per the code
-        uint32_t plainSize = 12; // from stdma-header.cc GetSerializedSize()
+        StdmaHeader plainHdr;
+        uint32_t plainSize = plainHdr.GetSerializedSize ();
 
         // Secure header without certificate
         SecureStdmaHeader hdrNoCert;
@@ -390,7 +393,7 @@ class NeighborCacheBenchmarkTest : public ns3::TestCase {
 public:
     NeighborCacheBenchmarkTest() : ns3::TestCase("Benchmark: Neighbor Cache") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         const int ITERATIONS = 1000;

@@ -12,10 +12,13 @@
  */
 
 #include "ns3/test.h"
+#include "ns3/log.h"
 #include "stdma-crypto.h"
 #include "stdma-secure-header.h"
 #include "stdma-neighbor-cache.h"
 #include <vector>
+
+NS_LOG_COMPONENT_DEFINE ("stdma.SecurityScenarios");
 
 namespace stdma {
 
@@ -30,7 +33,7 @@ class ValidSignatureTestCase : public ns3::TestCase {
 public:
     ValidSignatureTestCase() : ns3::TestCase("Security: Valid Signature Accepted") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Generate key pair and certificate
@@ -66,7 +69,7 @@ class InvalidSignatureTestCase : public ns3::TestCase {
 public:
     InvalidSignatureTestCase() : ns3::TestCase("Security: Corrupted Signature Rejected") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         ns3::Ptr<CryptoKeyPair> keyPair = CryptoProvider::GenerateKeyPair();
@@ -101,7 +104,7 @@ class WrongKeySignatureTestCase : public ns3::TestCase {
 public:
     WrongKeySignatureTestCase() : ns3::TestCase("Security: Wrong Key Signature Rejected") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         ns3::Ptr<CryptoKeyPair> signerKey = CryptoProvider::GenerateKeyPair();
@@ -134,7 +137,7 @@ class TamperedDataTestCase : public ns3::TestCase {
 public:
     TamperedDataTestCase() : ns3::TestCase("Security: Tampered Data Rejected") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         ns3::Ptr<CryptoKeyPair> keyPair = CryptoProvider::GenerateKeyPair();
@@ -173,7 +176,7 @@ class FreshTimestampTestCase : public ns3::TestCase {
 public:
     FreshTimestampTestCase() : ns3::TestCase("Security: Fresh Timestamp Accepted") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         uint64_t nowMs = 1000000;
@@ -195,7 +198,7 @@ class ExpiredTimestampTestCase : public ns3::TestCase {
 public:
     ExpiredTimestampTestCase() : ns3::TestCase("Security: Expired Timestamp Rejected") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         uint64_t nowMs = 1000000;
@@ -221,7 +224,7 @@ class FirstPacketTestCase : public ns3::TestCase {
 public:
     FirstPacketTestCase() : ns3::TestCase("Security: First Packet Accepted") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         ns3::Ptr<NeighborCache> cache = ns3::CreateObject<NeighborCache>();
@@ -245,7 +248,7 @@ class ReplayAttackTestCase : public ns3::TestCase {
 public:
     ReplayAttackTestCase() : ns3::TestCase("Security: Replay Attack Rejected") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         ns3::Ptr<NeighborCache> cache = ns3::CreateObject<NeighborCache>();
@@ -271,7 +274,7 @@ class OldSequenceTestCase : public ns3::TestCase {
 public:
     OldSequenceTestCase() : ns3::TestCase("Security: Old Sequence Rejected") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         ns3::Ptr<NeighborCache> cache = ns3::CreateObject<NeighborCache>();
@@ -295,7 +298,7 @@ class ValidSequenceTestCase : public ns3::TestCase {
 public:
     ValidSequenceTestCase() : ns3::TestCase("Security: Valid Sequence Accepted") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         ns3::Ptr<NeighborCache> cache = ns3::CreateObject<NeighborCache>();
@@ -325,7 +328,7 @@ class ValidCaSignedCertTestCase : public ns3::TestCase {
 public:
     ValidCaSignedCertTestCase() : ns3::TestCase("Security: Valid CA Cert Accepted") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Create CA
@@ -351,7 +354,7 @@ class SelfSignedCertTestCase : public ns3::TestCase {
 public:
     SelfSignedCertTestCase() : ns3::TestCase("Security: Self-Signed Cert Rejected") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Create two independent keys with self-signed certs
@@ -376,7 +379,7 @@ class ExpiredCertTestCase : public ns3::TestCase {
 public:
     ExpiredCertTestCase() : ns3::TestCase("Security: Expired Cert Rejected") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Create a key pair
@@ -407,7 +410,7 @@ class FirstPacketWithCertTestCase : public ns3::TestCase {
 public:
     FirstPacketWithCertTestCase() : ns3::TestCase("Security: First Packet Establishes Key") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         ns3::Ptr<NeighborCache> cache = ns3::CreateObject<NeighborCache>();
@@ -439,7 +442,7 @@ class CachedKeyTestCase : public ns3::TestCase {
 public:
     CachedKeyTestCase() : ns3::TestCase("Security: Cached Key Used") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         ns3::Ptr<NeighborCache> cache = ns3::CreateObject<NeighborCache>();
@@ -487,7 +490,7 @@ class TwoNodeExchangeTestCase : public ns3::TestCase {
 public:
     TwoNodeExchangeTestCase() : ns3::TestCase("Security: Two-Node Exchange") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Setup CA
@@ -563,7 +566,7 @@ class ImpersonationTestCase : public ns3::TestCase {
 public:
     ImpersonationTestCase() : ns3::TestCase("Security: Impersonation Rejected") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
         // Setup CA
@@ -619,13 +622,13 @@ class HeaderSerializationTestCase : public ns3::TestCase {
 public:
     HeaderSerializationTestCase() : ns3::TestCase("Security: Header Serialization") {}
 
-    virtual void DoRun() const {
+    virtual void DoRun () {
         NS_LOG_FUNCTION(this);
 
-        // Create a header
+        // Create a header (use integer-valued doubles: serialization truncates to uint32_t)
         SecureStdmaHeader hdr;
-        hdr.SetLatitude(40.7128);
-        hdr.SetLongitude(-74.0060);
+        hdr.SetLatitude(40.0);
+        hdr.SetLongitude(74.0);
         hdr.SetOffset(42);
         hdr.SetTimeout(5);
         hdr.SetNetworkEntry(false);
@@ -642,15 +645,15 @@ public:
         uint32_t size = hdr.GetSerializedSize();
         NS_TEST_ASSERT_MSG_GT(size, 0, "Serialized size should be positive");
 
-        ns3::Buffer buffer(size);
-        ns3::Buffer::Iterator it = buffer.Begin();
-        hdr.Serialize(it);
+        ns3::Buffer buffer;
+        buffer.AddAtEnd (size);
+        ns3::Buffer::Iterator it = buffer.Begin ();
+        hdr.Serialize (it);
 
-        // Deserialize
-        ns3::Buffer buffer2(size);
-        ns3::Buffer::Iterator it2 = buffer2.Begin();
+        // Deserialize from the same buffer
+        ns3::Buffer::Iterator it2 = buffer.Begin ();
         SecureStdmaHeader hdr2;
-        hdr2.Deserialize(it2);
+        hdr2.Deserialize (it2);
 
         // Verify fields
         NS_TEST_ASSERT_MSG_EQ(hdr2.GetLatitude(), hdr.GetLatitude(), "Latitude mismatch");

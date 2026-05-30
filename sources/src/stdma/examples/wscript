@@ -9,3 +9,6 @@ def build(bld):
 
     obj2 = bld.create_ns3_program('secure-stdma-example', ['core', 'mobility', 'network', 'wifi', 'stdma', 'applications'])
     obj2.source = 'secure-stdma-example.cc'
+
+    obj3 = bld.create_ns3_program('secure-stdma-eval', ['core', 'mobility', 'network', 'wifi', 'stdma', 'applications'])
+    obj3.source = 'secure-stdma-eval.cc'

@@ -1,0 +1,53 @@
+Secure STDMA - Crypto Unit Test Results
+========================================
+Date:       2026-05-31
+Platform:   Linux 6.6.114.1-microsoft-standard-WSL2 x86_64 (WSL2)
+OpenSSL:    OpenSSL 3.0.13 (30 Jan 2024)
+NS-3:       3.18 (optimized build)
+Test Suite: stdma-crypto
+
+Tests exercise the CryptoKeyPair, CryptoCertificate, CryptoProvider, and
+SecureStdmaHeader classes in isolation.
+
+================================================================================
+Test Cases
+================================================================================
+
+  PASS  Crypto: Key Generation
+        - CryptoProvider::GenerateKeyPair() returns a non-null key pair
+        - GetPublicKeyBytes() returns exactly 64 bytes (P-256 x||y uncompressed)
+        - SignHash(data, 4, sig) + VerifyHash(data, 4, sig, 64) returns true
+        - Tampered data (data[0] ^= 0xFF) fails VerifyHash
+
+  PASS  Crypto: Certificate
+        - CA key and self-signed certificate created successfully
+        - caCert->IsValid() returns true
+        - Self-signed cert verifies against itself (caCert->Verify(caCert) == true)
+        - Node certificate issued by CA; nodeCert->Verify(caCert) == true
+        - GetPublicKeyBytes() from certificate returns 64 bytes
+
+  PASS  Crypto: DER Encoding
+        - Certificate DER encoding is non-empty
+        - CryptoProvider::LoadCertificateFromDer(der) returns non-null cert
+        - Loaded cert reports IsValid() == true
+        - GetSubject() contains the expected CN string
+
+  PASS  SecureHeader: Serialization
+        - SecureStdmaHeader with lat, lon, offset, timeout, mode, timestamp,
+          nonce, certificate, and signature serializes to a positive-size buffer
+        - NS-3 Buffer round-trip (Serialize + Deserialize) preserves all fields:
+          latitude, longitude, offset, timeout, networkEntry, mode,
+          timestamp, nonce, certificate size
+
+  PASS  Crypto: Sign and Verify
+        - signerKey->Sign(data) returns 64-byte signature
+        - signerKey->Verify(data, sig) == true
+        - Key pair reconstructed from signerCert->GetPublicKeyBytes() verifies
+          the same signature == true
+        - verifierKey->Verify(data, sig) == false (wrong key rejects)
+        - Tampered data (data[0] ^= 0xFF) fails verification
+
+================================================================================
+Test Result: PASS (5/5 test cases)
+  Total time: 0.010 s
+================================================================================

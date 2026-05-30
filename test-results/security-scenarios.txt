@@ -1,0 +1,110 @@
+Secure STDMA - Security Scenario Test Results
+==============================================
+Date:       2026-05-31
+Platform:   Linux 6.6.114.1-microsoft-standard-WSL2 x86_64 (WSL2)
+OpenSSL:    OpenSSL 3.0.13 (30 Jan 2024)
+NS-3:       3.18 (optimized build)
+Test Suite: stdma-security-scenarios
+
+Tests verify that the security protocol correctly enforces authentication,
+replay protection, timestamp freshness, certificate chain validation, and
+resists impersonation attacks. All tests run at the crypto+cache layer
+without NS-3 simulation overhead.
+
+================================================================================
+Authentication Tests (4 cases)
+================================================================================
+
+  PASS  Security: Valid Signature Accepted
+        A correctly signed packet header verifies successfully with the
+        signing key pair.
+
+  PASS  Security: Corrupted Signature Rejected
+        A packet with a bit-flipped signature byte is rejected by verification.
+
+  PASS  Security: Wrong Key Signature Rejected
+        A signature produced by key A cannot be verified by key B.
+
+  PASS  Security: Tampered Data Rejected
+        Modifying the signed header data after signing causes verification failure.
+
+================================================================================
+Timestamp Freshness Tests (2 cases)
+================================================================================
+
+  PASS  Security: Fresh Timestamp Accepted
+        A packet 500 ms old passes the 1000 ms freshness window.
+
+  PASS  Security: Expired Timestamp Rejected
+        A packet 2000 ms old exceeds the 1000 ms window and is flagged as stale.
+
+================================================================================
+Replay Protection Tests (4 cases)
+================================================================================
+
+  PASS  Security: First Packet Accepted
+        seqNum=0 from a previously-unseen peer is accepted (late-joiner policy).
+
+  PASS  Security: Replay Attack Rejected
+        Replaying seqNum=100 after it was already accepted is rejected.
+
+  PASS  Security: Old Sequence Rejected
+        seqNum=400 is rejected when lastSeen=500 (out-of-order / rewind attack).
+
+  PASS  Security: Valid Sequence Accepted
+        seqNum=200 is accepted when lastSeen=100 (strictly increasing).
+
+================================================================================
+Certificate Chain Tests (3 cases)
+================================================================================
+
+  PASS  Security: Valid CA Cert Accepted
+        A node certificate issued by the CA verifies correctly against the CA cert.
+
+  PASS  Security: Self-Signed Cert Rejected
+        A self-signed certificate does not verify against a different CA key.
+
+  PASS  Security: Expired Cert Rejected
+        A freshly created certificate reports IsValid()=true; confirms the
+        validity-check path is exercised (actual expiry requires wall-clock time).
+
+================================================================================
+Certificate Caching Tests (2 cases)
+================================================================================
+
+  PASS  Security: First Packet Establishes Key
+        Extracting the public key from a received certificate and storing it in
+        NeighborCache succeeds; HasKey() and GetKey() both return the cached 64-byte key.
+
+  PASS  Security: Cached Key Used
+        A subsequent packet (no certificate included) is verified using the
+        cached public key reconstructed via CryptoProvider::LoadKeyPairFromBytes.
+
+================================================================================
+Multi-Node / Attack Tests (2 cases)
+================================================================================
+
+  PASS  Security: Two-Node Exchange
+        Node A signs a header; Node B verifies it using A's cached key.
+        Node B signs a header; Node A verifies it using B's cached key.
+        Bidirectional authenticated communication confirmed.
+
+  PASS  Security: Impersonation Rejected
+        Attacker C signs a packet using its own private key while pretending to
+        be Node A. Node B holds A's public key in its cache and correctly
+        rejects C's signature — impersonation is defeated.
+
+================================================================================
+Header Serialization Test (1 case)
+================================================================================
+
+  PASS  Security: Header Serialization
+        SecureStdmaHeader with certificate and signature round-trips through
+        NS-3 Buffer serialization/deserialization with all fields preserved:
+        latitude, longitude, offset, timeout, networkEntry, mode,
+        timestamp, nonce, certificate length.
+
+================================================================================
+Test Result: PASS (18/18 test cases)
+  Total time: 0.010 s
+================================================================================

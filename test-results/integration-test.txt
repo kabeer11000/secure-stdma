@@ -1,0 +1,61 @@
+Secure STDMA - End-to-End Integration Test Results
+====================================================
+Date:       2026-05-31
+Platform:   Linux 6.6.114.1-microsoft-standard-WSL2 x86_64 (WSL2)
+OpenSSL:    OpenSSL 3.0.13 (30 Jan 2024)
+NS-3:       3.18 (optimized build)
+Test Suite: stdma-integration
+
+This test exercises the FULL security path inside a live NS-3 discrete-event
+simulation — not just the crypto layer in isolation. It proves that:
+
+  TX path: StdmaMac::DoTransmit signs each packet header with ECDSA P-256
+           and embeds the X.509 certificate every 10th packet.
+
+  PHY path: Packet travels over an 802.11p channel between two simulated nodes.
+
+  RX path: StdmaMac::Receive validates the timestamp, verifies the ECDSA
+           signature (using the in-band certificate or the neighbor cache),
+           and only then fires the Rx trace. An Rx trace firing is therefore
+           proof of end-to-end authenticated delivery.
+
+================================================================================
+Test Configuration
+================================================================================
+
+  Nodes:            2
+  Channel:          802.11p CCH (YansWifiChannel, LogDistancePropagationLoss)
+  Node spacing:     10 m (well within range)
+  Frame duration:   1.0 s
+  Max packet size:  800 bytes (enlarged to accommodate SecureStdmaHeader + cert)
+  Report rate:      2 packets/s/node
+  Payload:          50 bytes
+  Simulation time:  5.0 s
+  Security:         ENABLED
+    CA:             CN=IntegrationTest-CA (ECDSA P-256, self-signed)
+    Nodes:          CN=Node-0, CN=Node-1 (CA-signed certificates)
+    Timestamp age:  1000 ms max
+
+================================================================================
+Test Case
+================================================================================
+
+  PASS  Secure STDMA: End-to-End Integration  (0.080 s)
+
+        m_txCount > 0  PASS  (nodes transmitted signed packets)
+        m_rxCount > 0  PASS  (packets received AND authenticated)
+
+        The non-zero m_rxCount proves the full pipeline:
+          1. StdmaMac::DoTransmit built SecureStdmaHeader
+          2. Header was signed with Node-0/Node-1's ECDSA private key
+          3. X.509 certificate was embedded (first packet, seqNum % 10 == 0)
+          4. Packet traversed the simulated 802.11p channel
+          5. StdmaMac::Receive decoded the SecureStdmaHeader
+          6. Timestamp was within the 1000 ms freshness window
+          7. Signature was verified against the in-band certificate
+          8. Packet was passed up the stack (Rx trace fired)
+
+================================================================================
+Test Result: PASS (1/1 test case)
+  Total time: 0.080 s
+================================================================================

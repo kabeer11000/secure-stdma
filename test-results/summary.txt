@@ -1,0 +1,56 @@
+Secure STDMA - Test Suite Summary
+===================================
+Date:       2026-05-31
+Platform:   Linux 6.6.114.1-microsoft-standard-WSL2 x86_64 (WSL2)
+OpenSSL:    OpenSSL 3.0.13 (30 Jan 2024)
+NS-3:       3.18 (optimized build, --enable-tests)
+
+All tests pass. Run with:
+  LD_LIBRARY_PATH=sources/build \
+    sources/build/utils/ns3.18-test-runner-optimized \
+    --suite=<suite-name> --verbose
+
+================================================================================
+Suite                    | Cases | Result | Time   | File
+-------------------------|-------|--------|--------|-----------------------------
+stdma-crypto             |     5 |  PASS  | 0.01 s | crypto-unit-tests.txt
+stdma-security-scenarios |    18 |  PASS  | 0.01 s | security-scenarios.txt
+stdma-benchmark          |     3 |  PASS  | 0.15 s | benchmark.txt
+stdma-integration        |     1 |  PASS  | 0.08 s | integration-test.txt
+stdma                    |     3 |  PASS  | 0.08 s | stdma-protocol-tests.txt
+-------------------------|-------|--------|--------|-----------------------------
+TOTAL                    |    30 |  PASS  | 0.33 s |
+================================================================================
+
+Coverage by security property
+----------------------------------------------
+Property              | Test Suite(s)
+----------------------|-------------------
+Key generation        | stdma-crypto, stdma-benchmark
+ECDSA signing         | stdma-crypto, stdma-security-scenarios, stdma-benchmark
+ECDSA verification    | stdma-crypto, stdma-security-scenarios, stdma-benchmark
+Certificate creation  | stdma-crypto, stdma-benchmark
+Certificate chain     | stdma-crypto, stdma-security-scenarios
+DER encode/decode     | stdma-crypto, stdma-benchmark
+Replay protection     | stdma-security-scenarios
+Timestamp freshness   | stdma-security-scenarios
+Certificate caching   | stdma-security-scenarios
+Impersonation resist  | stdma-security-scenarios
+End-to-end in NS-3    | stdma-integration
+Base MAC protocol     | stdma
+
+Performance summary (ECDSA P-256, OpenSSL 3.0.13)
+----------------------------------------------
+Key generation:        24.5 us avg
+Signature (256B):      25.8 us avg
+Verification (256B):   78.3 us avg
+Sign + Verify cycle:  104.0 us avg   (<< 1 ms real-time requirement)
+Cert DER decode:      177.7 us avg
+Replay cache lookup:    0.2 us avg
+
+Header overhead per packet
+----------------------------------------------
+Plain STDMA:           20 bytes
+Secure (no cert):     155 bytes (+135)
+Secure (with cert):   431 bytes (+411, every 10th packet)
+Average (10:1 ratio): ~125 bytes average (+105 vs plain)

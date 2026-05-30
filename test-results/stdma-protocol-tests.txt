@@ -1,0 +1,41 @@
+Secure STDMA - Protocol (MAC Layer) Test Results
+==================================================
+Date:       2026-05-31
+Platform:   Linux 6.6.114.1-microsoft-standard-WSL2 x86_64 (WSL2)
+NS-3:       3.18 (optimized build)
+Test Suite: stdma (original protocol tests, no security)
+
+These are the original NS-3 STDMA module tests that validate the base MAC
+protocol (slot timing, frame synchronization, network entry) independent
+of the security extension.
+
+================================================================================
+Test Cases
+================================================================================
+
+  PASS  StdmaTwoNodesTest  (0.060 s)
+        Two nodes exchange packets over 4.05 simulated seconds.
+        - 60 total TX events (30 per node at 10 pkt/s report rate)
+        - Each node's announced offset matches the other node's expected RX slot
+        - Frame duration: 999,556,000 ns  |  Slot duration: 566,000 ns
+        Validates slot coordination and cross-node timing correctness.
+
+  PASS  StdmaSingleNodeTest  (0.010 s)
+        Single node runs for 4.1 simulated seconds.
+        - Exactly 30 packets transmitted
+        - Transmission time matches the announced slot for every packet
+        - Timeout values decrease correctly across frames
+        Validates self-consistent slot management without peer interaction.
+
+  PASS  StdmaSlotManagerTest  (0.010 s)
+        Unit test for StdmaSlotManager state machine.
+        - All slots initialize as FREE
+        - Slots transition FREE -> BUSY -> ALLOCATED correctly on marking
+        - Frame rebase recalculates slot indices accurately
+        - UpdateSlotObservations decrements timeout; slot returns to FREE at 0
+        - GetSlotIndexForTimestamp is accurate before and after rebase
+
+================================================================================
+Test Result: PASS (3/3 test cases)
+  Total time: 0.080 s
+================================================================================

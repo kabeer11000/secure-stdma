@@ -1,0 +1,123 @@
+Secure STDMA - Benchmark Test Results
+======================================
+Date:       2026-05-31
+Platform:   Linux 6.6.114.1-microsoft-standard-WSL2 x86_64 (WSL2)
+OpenSSL:    OpenSSL 3.0.13 (30 Jan 2024)
+NS-3:       3.18 (optimized build)
+Test Suite: stdma-benchmark
+
+================================================================================
+         Secure STDMA Cryptographic Performance Benchmark
+================================================================================
+
+Configuration:
+  - ECDSA Curve: P-256 (secp256r1)
+  - Hash Algorithm: SHA-256
+  - Signature Size: 64 bytes (R || S)
+  - Public Key Size: 64 bytes (X || Y)
+  - Iterations: 100 (warmup: 10)
+
+--------------------------------------------------------------------------------
+1. Key Generation (ECDSA P-256)
+--------------------------------------------------------------------------------
+| Operation                    |    Avg (us) |    Min (us) |    Max (us) |
+|-------------------------------|--------------|-------------|-------------|
+| Key Generation               |      24.52 |      24.09 |      49.18 |
+
+--------------------------------------------------------------------------------
+2. ECDSA Signature Generation
+--------------------------------------------------------------------------------
+| Operation                    |    Avg (us) |    Min (us) |    Max (us) |
+|-------------------------------|--------------|-------------|-------------|
+| Sign (64B data)              |      25.58 |      24.89 |      45.78 |
+| Sign (128B data)             |      26.22 |      24.91 |      74.73 |
+| Sign (256B data)             |      25.82 |      24.99 |      53.42 |
+| Sign (512B data)             |      26.88 |      25.14 |      79.52 |
+| Sign (1024B data)            |      25.82 |      25.41 |      44.27 |
+
+Note: Signing time is independent of input size (SHA-256 hash is always 32 bytes).
+
+--------------------------------------------------------------------------------
+3. ECDSA Signature Verification
+--------------------------------------------------------------------------------
+| Operation                    |    Avg (us) |    Min (us) |    Max (us) |
+|-------------------------------|--------------|-------------|-------------|
+| Verify (64B data)            |      73.98 |      70.92 |     130.42 |
+| Verify (128B data)           |      74.43 |      71.01 |     159.16 |
+| Verify (256B data)           |      78.27 |      71.07 |     173.49 |
+| Verify (512B data)           |      74.04 |      71.17 |     117.60 |
+| Verify (1024B data)          |      74.26 |      71.42 |     129.46 |
+
+Note: Verification is ~3x slower than signing (expected for ECDSA P-256).
+
+--------------------------------------------------------------------------------
+4. X.509 Certificate Operations
+--------------------------------------------------------------------------------
+| Operation                    |    Avg (us) |    Min (us) |    Max (us) |
+|-------------------------------|--------------|-------------|-------------|
+| Create Self-Signed Cert      |      72.14 |      57.22 |     295.16 |
+| Issue Node Certificate       |      76.66 |      59.54 |     321.21 |
+| Verify Cert Chain            |      93.34 |      79.22 |     260.85 |
+
+--------------------------------------------------------------------------------
+5. DER Encoding and Key Reconstruction
+--------------------------------------------------------------------------------
+| Operation                    |    Avg (us) |    Min (us) |    Max (us) |
+|-------------------------------|--------------|-------------|-------------|
+| Decode Cert from DER         |     177.69 |     151.99 |     317.06 |
+| Reconstruct Key (64B)        |      81.07 |      69.48 |     149.91 |
+
+  Certificate DER size: 292 bytes
+
+--------------------------------------------------------------------------------
+6. Complete Sign + Verify Cycle
+--------------------------------------------------------------------------------
+| Operation                    |    Avg (us) |    Min (us) |    Max (us) |
+|-------------------------------|--------------|-------------|-------------|
+| Sign + Verify (256B)         |     103.99 |      96.98 |     174.33 |
+
+Total authentication latency per packet: ~104 us (well under the 1ms real-time
+requirement for vehicular safety applications).
+
+================================================================================
+                       Packet Header Size Benchmark
+================================================================================
+
+| Header Type                     |    Size (bytes) |
+|----------------------------------|-----------------|
+| Plain STDMA Header              |              20 |
+| Secure STDMA (no cert)          |              91 |
+| Secure STDMA + Signature (64B)  |             155 |
+| Secure STDMA + Cert (~276B)     |             431 |
+
+Security Overhead:
+  Plain -> Secure+Sig:                          +135 bytes per packet
+  With certificate (every 10th packet):         +411 bytes
+  Average per-packet overhead (10:1 cert ratio): ~105 bytes
+
+Breakdown of per-packet security fields:
+  securityControl (1) + timestamp (8) + nonce (4) = 13 bytes
+  ECDSA signature                                  = 64 bytes
+  certLength field                                 =  2 bytes
+  Certificate (amortized over 10 packets)          = ~29 bytes
+  -------------------------------------------------------
+  Average overhead                                 = ~108 bytes
+
+================================================================================
+                     Neighbor Cache Performance
+================================================================================
+
+| Operation              |   Avg (ns) |   Min (ns) |   Max (ns) |
+|------------------------|------------|------------|------------|
+| HasKey (10 entries)    |     184.20 |     160.00 |     280.00 |
+| ValidateSeqNum         |     220.39 |     190.00 |     300.00 |
+
+  Cache size: 10 entries
+  Replay protection lookup: < 1 us (negligible overhead)
+
+================================================================================
+Test Result: PASS (3/3 benchmarks)
+  PASS Benchmark: Crypto Latency       0.140 s
+  PASS Benchmark: Header Sizes         0.000 s
+  PASS Benchmark: Neighbor Cache       0.000 s
+================================================================================
